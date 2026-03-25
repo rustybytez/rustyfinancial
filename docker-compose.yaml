@@ -7,9 +7,9 @@ services:
       - path: .env
         required: false
     environment:
-      - DATABASE_URL
-      - PORT
-      - AUTH_TOKEN
+      - DATABASE_URL=${DATABASE_URL:-/data/rustyfinancial.db}
+      - PORT=${PORT:-8080}
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
     volumes:
       - db-data:/data
     restart: unless-stopped
