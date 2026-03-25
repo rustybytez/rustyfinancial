@@ -1,4 +1,4 @@
-.PHONY: build run dev test test-pkg lint fmt tidy sqlc tailwind tailwind-watch docker-build docker-run help
+.PHONY: build run dev test test-pkg lint fmt tidy sqlc tailwind tailwind-watch docker-build docker-run docker-up docker-down help
 
 BINARY=rustyfinancial
 
@@ -17,7 +17,9 @@ help:
 	@echo "  tailwind         build CSS once"
 	@echo "  tailwind-watch   rebuild CSS on change"
 	@echo "  docker-build     build Docker image"
-	@echo "  docker-run       run Docker image with .env"
+	@echo "  docker-run       run Docker image (foreground)"
+	@echo "  docker-up        run Docker image (detached)"
+	@echo "  docker-down      stop and remove containers"
 
 build:
 	go build -o $(BINARY) ./cmd/server
@@ -63,3 +65,9 @@ docker-build:
 
 docker-run:
 	docker compose up
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
