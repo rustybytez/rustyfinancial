@@ -1,0 +1,72 @@
+{{ define "content" }}
+<div class="flex items-center gap-3 mb-6">
+    <a href="/" class="btn btn-ghost btn-sm">← Back</a>
+    <div>
+        <h1 class="text-2xl font-bold">{{ .Account.Name }}</h1>
+        <span class="badge badge-outline capitalize">{{ .Account.Type }}</span>
+    </div>
+    <div class="ml-auto text-right">
+        <p class="text-sm text-base-content/60">Balance</p>
+        <p class="text-2xl font-bold {{ if lt .Balance 0 }}text-error{{ else }}text-success{{ end }}">
+            ${{ printf "%.2f" (divf .Balance 100) }}
+        </p>
+    </div>
+</div>
+
+<div class="card bg-base-100 shadow-sm mb-6">
+    <div class="card-body p-4">
+        <h2 class="font-semibold mb-3">Add Transaction</h2>
+        <form method="POST" action="/accounts/{{ .Account.ID }}/transactions" class="flex flex-wrap gap-2 items-end">
+            <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Date</span></label>
+                <input type="date" name="date" class="input input-bordered input-sm" required />
+            </div>
+            <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Amount (negative = debit)</span></label>
+                <input type="number" name="amount" step="0.01" placeholder="0.00" class="input input-bordered input-sm w-36" required />
+            </div>
+            <div class="form-control flex-1">
+                <label class="label py-0"><span class="label-text text-xs">Description</span></label>
+                <input type="text" name="description" placeholder="Description" class="input input-bordered input-sm" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Add</button>
+        </form>
+    </div>
+</div>
+
+<div class="card bg-base-100 shadow-sm">
+    <div class="overflow-x-auto">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-right">Amount</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .Transactions }}
+                <tr class="hover">
+                    <td class="text-base-content/60 text-sm">{{ .Date }}</td>
+                    <td>{{ .Description }}</td>
+                    <td class="text-right font-medium {{ if lt .Amount 0 }}text-error{{ else }}text-success{{ end }}">
+                        ${{ printf "%.2f" (divf .Amount 100) }}
+                    </td>
+                    <td class="text-right">
+                        <form method="POST" action="/accounts/{{ $.Account.ID }}/transactions/{{ .ID }}/delete">
+                            <button type="submit" class="btn btn-ghost btn-xs text-error"
+                                onclick="return confirm('Delete?')">✕</button>
+                        </form>
+                    </td>
+                </tr>
+                {{ else }}
+                <tr>
+                    <td colspan="4" class="text-center text-base-content/40 py-8">No transactions yet</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{ end }}

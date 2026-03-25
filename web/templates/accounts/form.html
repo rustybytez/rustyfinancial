@@ -1,0 +1,34 @@
+{{ define "content" }}
+{{ $editing := .ID }}
+<div class="max-w-md mx-auto">
+    <h1 class="text-2xl font-bold mb-6">{{ if $editing }}Edit Account{{ else }}New Account{{ end }}</h1>
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+            <form method="POST" action="{{ if $editing }}/accounts/{{ .ID }}/edit{{ else }}/accounts{{ end }}">
+                <div class="form-control mb-4">
+                    <label class="label"><span class="label-text">Name</span></label>
+                    <input type="text" name="name" value="{{ .Name }}" class="input input-bordered" required autofocus />
+                </div>
+                <div class="form-control mb-4">
+                    <label class="label"><span class="label-text">Type</span></label>
+                    <select name="type" class="select select-bordered" required>
+                        {{ $cur := .Type }}
+                        {{ range $t := list "cash" "investment" "retirement" "debt" "other" }}
+                        <option value="{{ $t }}" {{ if eq $cur $t }}selected{{ end }}>{{ $t }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="form-control mb-6">
+                    <label class="label"><span class="label-text">Currency</span></label>
+                    <input type="text" name="currency" value="{{ if .Currency }}{{ .Currency }}{{ else }}USD{{ end }}"
+                        class="input input-bordered" maxlength="3" />
+                </div>
+                <div class="flex gap-2 justify-end">
+                    <a href="/" class="btn btn-ghost">Cancel</a>
+                    <button type="submit" class="btn btn-primary">{{ if $editing }}Save{{ else }}Create{{ end }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{{ end }}

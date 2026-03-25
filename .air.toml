@@ -1,0 +1,9 @@
+[build]
+  cmd = "go build -o ./tmp/server ./cmd/server"
+  entrypoint = "./tmp/server"
+  include_ext = ["go", "html"]
+  exclude_dir = ["tmp", "node_modules", "internal/db"]
+  delay = 500
+
+[log]
+  main_only = true

@@ -1,0 +1,41 @@
+ARG GO_VERSION=1.26
+ARG ALPINE_VERSION=3.21
+
+# ── CSS builder ───────────────────────────────────────────────────────────────
+FROM oven/bun:alpine AS css-builder
+WORKDIR /app
+
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+
+COPY assets/ assets/
+COPY web/templates/ web/templates/
+
+RUN bunx tailwindcss -i ./assets/css/input.css -o ./web/static/css/output.css --minify
+
+# ── Go builder ────────────────────────────────────────────────────────────────
+FROM golang:${GO_VERSION}-alpine AS builder
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+COPY --from=css-builder /app/web/static/css/output.css ./web/static/css/output.css
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server
+
+# ── Final image ───────────────────────────────────────────────────────────────
+FROM alpine:${ALPINE_VERSION}
+WORKDIR /app
+
+RUN apk add --no-cache ca-certificates tzdata
+
+RUN mkdir /data
+
+COPY --from=builder /app/server .
+
+ENV DATABASE_URL=/data/rustyfinancial.db
+EXPOSE 8080
+
+ENTRYPOINT ["/app/server"]

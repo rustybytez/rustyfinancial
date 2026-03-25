@@ -1,0 +1,26 @@
+{{ define "layout" }}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RustyFinancial</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+    <link rel="stylesheet" href="/static/css/output.css" />
+</head>
+<body class="bg-base-200 min-h-screen">
+    <div class="navbar bg-base-100 shadow-sm px-4">
+        <div class="flex-1">
+            <a href="/" class="text-xl font-bold text-primary">RustyFinancial</a>
+        </div>
+        <div class="flex-none gap-2">
+            <a href="/accounts/new" class="btn btn-primary btn-sm">+ Account</a>
+            <a href="/logout" class="btn btn-ghost btn-sm">Logout</a>
+        </div>
+    </div>
+    <main class="container mx-auto px-4 py-8 max-w-5xl">
+        {{ template "content" . }}
+    </main>
+</body>
+</html>
+{{ end }}
