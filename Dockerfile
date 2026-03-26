@@ -31,9 +31,14 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates tzdata
 
-RUN mkdir /data
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+RUN mkdir /data && chown appuser:appgroup /data
 
 COPY --from=builder /app/server .
+RUN chown appuser:appgroup /app/server
+
+USER appuser
 
 ENV DATABASE_URL=/data/rustyfinancial.db
 EXPOSE 8080

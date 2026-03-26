@@ -10,6 +10,7 @@ services:
       - AUTH_TOKEN=${AUTH_TOKEN:-}
     volumes:
       - db-data:/data
+    user: appuser
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
