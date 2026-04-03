@@ -5,14 +5,25 @@
 package db
 
 import (
+	"database/sql"
 	"time"
 )
 
 type Account struct {
+	ID            int64
+	Name          string
+	Type          string
+	Currency      string
+	Institution   string
+	ManualBalance sql.NullInt64
+	CreatedAt     time.Time
+}
+
+type AccountSnapshot struct {
 	ID        int64
-	Name      string
-	Type      string
-	Currency  string
+	AccountID int64
+	Date      time.Time
+	Balance   int64
 	CreatedAt time.Time
 }
 

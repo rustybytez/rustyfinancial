@@ -1,27 +1,30 @@
 {{ define "content" }}
 {{ $editing := .ID }}
-<div class="max-w-md mx-auto">
+{{ $typeLabels := dict "cash" "Cash" "investment" "Investment" "real_estate" "Real estate" "liability" "Liability" "other" "Other" }}
+<div class="max-w-lg mx-auto">
     <h1 class="text-2xl font-bold mb-6">{{ if $editing }}Edit Account{{ else }}New Account{{ end }}</h1>
     <div class="card bg-base-100 shadow-sm">
         <div class="card-body">
             <form method="POST" action="{{ if $editing }}/accounts/{{ .ID }}/edit{{ else }}/accounts{{ end }}">
-                <div class="form-control mb-4">
-                    <label class="label"><span class="label-text">Name</span></label>
-                    <input type="text" name="name" value="{{ .Name }}" class="input input-bordered" required autofocus />
-                </div>
-                <div class="form-control mb-4">
-                    <label class="label"><span class="label-text">Type</span></label>
-                    <select name="type" class="select select-bordered" required>
+                <div class="grid grid-cols-[7rem_1fr] items-center gap-x-4 gap-y-4 mb-6">
+                    <label class="text-sm text-base-content/60 text-right">Name</label>
+                    <input type="text" name="name" value="{{ .Name }}" class="input input-bordered w-full" required autofocus />
+
+                    <label class="text-sm text-base-content/60 text-right">Type</label>
+                    <select name="type" class="select select-bordered w-full" required>
                         {{ $cur := .Type }}
-                        {{ range $t := list "cash" "investment" "retirement" "debt" "other" }}
-                        <option value="{{ $t }}" {{ if eq $cur $t }}selected{{ end }}>{{ $t }}</option>
+                        {{ range $t := list "cash" "investment" "real_estate" "liability" "other" }}
+                        <option value="{{ $t }}" {{ if eq $cur $t }}selected{{ end }}>{{ index $typeLabels $t }}</option>
                         {{ end }}
                     </select>
-                </div>
-                <div class="form-control mb-6">
-                    <label class="label"><span class="label-text">Currency</span></label>
+
+                    <label class="text-sm text-base-content/60 text-right">Institution</label>
+                    <input type="text" name="institution" value="{{ .Institution }}" class="input input-bordered w-full"
+                        placeholder="e.g. Vanguard, Chase" />
+
+                    <label class="text-sm text-base-content/60 text-right">Currency</label>
                     <input type="text" name="currency" value="{{ if .Currency }}{{ .Currency }}{{ else }}USD{{ end }}"
-                        class="input input-bordered" maxlength="3" />
+                        class="input input-bordered w-full" maxlength="3" />
                 </div>
                 <div class="flex gap-2 justify-end">
                     <a href="/" class="btn btn-ghost">Cancel</a>

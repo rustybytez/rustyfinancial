@@ -8,7 +8,7 @@
     <div class="ml-auto text-right">
         <p class="text-sm text-base-content/60">Balance</p>
         <p class="text-2xl font-bold {{ if lt .Balance 0 }}text-error{{ else }}text-success{{ end }}">
-            ${{ printf "%.2f" (divf .Balance 100) }}
+            {{ fmtMoney .Balance }}
         </p>
     </div>
 </div>
@@ -51,7 +51,7 @@
                     <td class="text-base-content/60 text-sm">{{ .Date }}</td>
                     <td>{{ .Description }}</td>
                     <td class="text-right font-medium {{ if lt .Amount 0 }}text-error{{ else }}text-success{{ end }}">
-                        ${{ printf "%.2f" (divf .Amount 100) }}
+                        {{ fmtMoney .Amount }}
                     </td>
                     <td class="text-right">
                         <form method="POST" action="/accounts/{{ $.Account.ID }}/transactions/{{ .ID }}/delete">

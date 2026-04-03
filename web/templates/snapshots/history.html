@@ -1,0 +1,55 @@
+{{ define "content" }}
+{{ $typeLabels := dict "cash" "Cash" "investment" "Investments" "real_estate" "Real estate" "liability" "Liabilities" "other" "Other" }}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">History</h1>
+    <div class="flex gap-2">
+        <form method="POST" action="/snapshots">
+            <button type="submit" class="btn btn-outline btn-sm">Take snapshot</button>
+        </form>
+        <a href="/" class="btn btn-ghost btn-sm">← Dashboard</a>
+    </div>
+</div>
+
+{{ if not .Rows }}
+<div class="hero bg-base-100 rounded-box py-20">
+    <div class="hero-content text-center">
+        <div>
+            <h2 class="text-xl font-bold">No snapshots yet</h2>
+            <p class="py-4 text-base-content/60">The first snapshot will be taken automatically on the 1st of next month.</p>
+        </div>
+    </div>
+</div>
+{{ else }}
+<div class="card bg-base-100 shadow-sm overflow-x-auto">
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Date</th>
+                {{ range $t := .TypeOrder }}
+                <th class="text-right">{{ index $typeLabels $t }}</th>
+                {{ end }}
+                <th class="text-right">Net Worth</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .Rows }}
+            <tr class="hover">
+                <td class="font-medium text-base-content/70">{{ .Date }}</td>
+                {{ $totals := .Totals }}
+                {{ range $t := $.TypeOrder }}
+                {{ $v := index $totals $t }}
+                <td class="text-right {{ if eq $t "liability" }}text-error{{ else if lt $v 0 }}text-error{{ else if gt $v 0 }}text-success{{ else }}text-base-content/40{{ end }}">
+                    {{ if $v }}{{ fmtMoney $v }}{{ else }}<span class="text-base-content/30">—</span>{{ end }}
+                </td>
+                {{ end }}
+                <td class="text-right font-semibold {{ if lt .NetWorth 0 }}text-error{{ else }}text-success{{ end }}">
+                    {{ fmtMoney .NetWorth }}
+                </td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+{{ end }}
+{{ end }}

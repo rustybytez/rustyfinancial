@@ -2,6 +2,9 @@ package handler
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -21,12 +24,18 @@ func NewAccountHandler(s *store.Store) *AccountHandler {
 
 type accountWithBalance struct {
 	db.Account
-	Balance int64
+	Balance     int64
+	ManuallySet bool
 }
 
+var typeOrder = []string{"cash", "investment", "real_estate", "liability", "other"}
+
 type dashboardData struct {
-	ByType map[string][]accountWithBalance
-	Totals map[string]int64
+	ByType    map[string][]accountWithBalance
+	Totals    map[string]int64
+	TypeOrder []string
+	EditMode  bool
+	NetWorth  int64
 }
 
 func (h *AccountHandler) Dashboard(c echo.Context) error {
@@ -39,17 +48,39 @@ func (h *AccountHandler) Dashboard(c echo.Context) error {
 	totals := map[string]int64{}
 
 	for _, a := range accounts {
-		raw, err := h.store.GetAccountBalance(context.Background(), a.ID)
-		if err != nil {
-			return err
+		var bal int64
+		var manuallySet bool
+		if a.ManualBalance.Valid {
+			bal = a.ManualBalance.Int64
+			manuallySet = true
+		} else {
+			raw, err := h.store.GetAccountBalance(context.Background(), a.ID)
+			if err != nil {
+				return err
+			}
+			bal = toInt64(raw)
 		}
-		bal := toInt64(raw)
-		awb := accountWithBalance{Account: a, Balance: bal}
+		awb := accountWithBalance{Account: a, Balance: bal, ManuallySet: manuallySet}
 		byType[a.Type] = append(byType[a.Type], awb)
 		totals[a.Type] += bal
 	}
 
-	return render(c, "accounts/dashboard.html", dashboardData{ByType: byType, Totals: totals})
+	var netWorth int64
+	for t, total := range totals {
+		if t == "liability" {
+			netWorth -= total
+		} else {
+			netWorth += total
+		}
+	}
+
+	return render(c, "accounts/dashboard.html", dashboardData{
+		ByType:    byType,
+		Totals:    totals,
+		TypeOrder: typeOrder,
+		EditMode:  c.QueryParam("edit") == "true",
+		NetWorth:  netWorth,
+	})
 }
 
 func (h *AccountHandler) NewForm(c echo.Context) error {
@@ -58,9 +89,10 @@ func (h *AccountHandler) NewForm(c echo.Context) error {
 
 func (h *AccountHandler) Create(c echo.Context) error {
 	params := db.CreateAccountParams{
-		Name:     c.FormValue("name"),
-		Type:     c.FormValue("type"),
-		Currency: c.FormValue("currency"),
+		Name:        c.FormValue("name"),
+		Type:        c.FormValue("type"),
+		Currency:    c.FormValue("currency"),
+		Institution: c.FormValue("institution"),
 	}
 	if params.Currency == "" {
 		params.Currency = "USD"
@@ -89,10 +121,11 @@ func (h *AccountHandler) Update(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 	params := db.UpdateAccountParams{
-		Name:     c.FormValue("name"),
-		Type:     c.FormValue("type"),
-		Currency: c.FormValue("currency"),
-		ID:       id,
+		Name:        c.FormValue("name"),
+		Type:        c.FormValue("type"),
+		Currency:    c.FormValue("currency"),
+		Institution: c.FormValue("institution"),
+		ID:          id,
 	}
 	if _, err := h.store.UpdateAccount(context.Background(), params); err != nil {
 		return err
@@ -107,6 +140,63 @@ func (h *AccountHandler) Delete(c echo.Context) error {
 	}
 	if err := h.store.DeleteAccount(context.Background(), id); err != nil {
 		return err
+	}
+	return c.Redirect(http.StatusFound, "/")
+}
+
+type balanceFormData struct {
+	db.Account
+	CurrentBalance string // formatted as "1234.56" for the input
+}
+
+func (h *AccountHandler) BalanceForm(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	account, err := h.store.GetAccount(context.Background(), id)
+	if err != nil {
+		return echo.ErrNotFound
+	}
+	var current string
+	if account.ManualBalance.Valid {
+		current = fmt.Sprintf("%.2f", float64(account.ManualBalance.Int64)/100)
+	}
+	return render(c, "accounts/balance.html", balanceFormData{Account: account, CurrentBalance: current})
+}
+
+func (h *AccountHandler) SetBalance(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+
+	raw := c.FormValue("balance")
+	if raw == "" {
+		// Clear manual balance — fall back to transactions
+		if err := h.store.ClearManualBalance(context.Background(), id); err != nil {
+			return err
+		}
+		if c.Request().Header.Get("HX-Request") == "true" {
+			return c.NoContent(http.StatusNoContent)
+		}
+		return c.Redirect(http.StatusFound, "/")
+	}
+
+	dollars, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	cents := int64(math.Round(dollars * 100))
+
+	if err := h.store.SetManualBalance(context.Background(), db.SetManualBalanceParams{
+		ManualBalance: sql.NullInt64{Int64: cents, Valid: true},
+		ID:            id,
+	}); err != nil {
+		return err
+	}
+	if c.Request().Header.Get("HX-Request") == "true" {
+		return c.NoContent(http.StatusNoContent)
 	}
 	return c.Redirect(http.StatusFound, "/")
 }

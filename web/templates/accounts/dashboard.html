@@ -1,46 +1,93 @@
 {{ define "content" }}
-{{ $types := list "cash" "investment" "retirement" "debt" "other" }}
-{{ $labels := dict "cash" "Cash" "investment" "Investments" "retirement" "Retirement" "debt" "Debt" "other" "Other" }}
+{{ $labels := dict "cash" "Cash" "investment" "Investments" "real_estate" "Real estate" "liability" "Liabilities" "other" "Other" }}
 
-<h1 class="text-2xl font-bold mb-6">Dashboard</h1>
-
-{{ range $type, $accounts := .ByType }}
-<div class="mb-8">
-    <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold capitalize">{{ $type }}</h2>
-        <span class="text-sm font-medium {{ if lt (index $.Totals $type) 0 }}text-error{{ else }}text-success{{ end }}">
-            Total: ${{ printf "%.2f" (divf (index $.Totals $type) 100) }}
-        </span>
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
+        <details class="group">
+            <summary class="list-none cursor-pointer select-none text-sm text-base-content/40 hover:text-base-content/70 transition-colors">
+                Net worth
+            </summary>
+            <span class="text-lg font-bold {{ if lt $.NetWorth 0 }}text-error{{ else }}text-success{{ end }}">
+                {{ fmtMoney $.NetWorth }}
+            </span>
+        </details>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {{ range $accounts }}
-        <div class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="card-body p-4">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <a href="/accounts/{{ .ID }}" class="font-semibold hover:text-primary">{{ .Name }}</a>
-                        <p class="text-xs text-base-content/60 mt-1">{{ .Currency }}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-bold text-lg {{ if lt .Balance 0 }}text-error{{ else }}text-success{{ end }}">
-                            ${{ printf "%.2f" (divf .Balance 100) }}
-                        </p>
-                    </div>
-                </div>
-                <div class="card-actions justify-end mt-2">
-                    <a href="/accounts/{{ .ID }}" class="btn btn-ghost btn-xs">Transactions</a>
-                    <a href="/accounts/{{ .ID }}/edit" class="btn btn-ghost btn-xs">Edit</a>
-                    <form method="POST" action="/accounts/{{ .ID }}/delete" class="inline">
-                        <button type="submit" class="btn btn-ghost btn-xs text-error"
-                            onclick="return confirm('Delete this account?')">Delete</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+    <div class="flex gap-2">
+        {{ if $.EditMode }}
+        <a href="/" class="btn btn-primary btn-sm">Done</a>
+        {{ else }}
+        <a href="/?edit=true" class="btn btn-ghost btn-sm">Edit balances</a>
+        <a href="/accounts/new" class="btn btn-primary btn-sm">+ Add Account</a>
         {{ end }}
     </div>
 </div>
-{{ else }}
+
+{{ $hasAny := false }}
+{{ range $t := $.TypeOrder }}
+{{ $accounts := index $.ByType $t }}
+{{ if $accounts }}
+{{ $hasAny = true }}
+<div class="mb-6">
+    <div class="flex items-center justify-between border-b border-base-300 pb-2 mb-1">
+        <span class="font-semibold text-base">{{ index $labels $t }}</span>
+        <span class="font-semibold text-base {{ if eq $t "liability" }}text-error{{ else if lt (index $.Totals $t) 0 }}text-error{{ else }}text-success{{ end }}">
+            {{ fmtMoney (index $.Totals $t) }}
+        </span>
+    </div>
+    {{ range $accounts }}
+    <div class="flex items-center py-3 border-b border-base-200 last:border-0 hover:bg-base-200/40 px-1 rounded transition-colors">
+        <div class="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center mr-3 flex-shrink-0">
+            <span class="font-bold text-primary">{{ initial .Name }}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+            <a href="/accounts/{{ .ID }}" class="font-semibold hover:text-primary block truncate">{{ .Name }}</a>
+            {{ if .Institution }}<p class="text-xs text-base-content/60">{{ .Institution }}</p>{{ end }}
+        </div>
+        <div class="flex items-center gap-3 ml-3 flex-shrink-0">
+            {{ if $.EditMode }}
+            <form hx-post="/accounts/{{ .ID }}/balance"
+                  hx-trigger="change"
+                  hx-swap="none"
+                  hx-on::after-request="let i=this.querySelector('input');i.classList.add('input-success');setTimeout(()=>i.classList.remove('input-success'),1200)">
+                <label class="input input-bordered input-sm flex items-center gap-1 w-32">
+                    <span class="text-base-content/40 text-xs">$</span>
+                    <input type="number" name="balance"
+                           value="{{ printf "%.2f" (divf .Balance 100) }}"
+                           step="0.01" min="0"
+                           class="grow text-right transition-colors" />
+                </label>
+            </form>
+            {{ else }}
+            <div class="text-right">
+                <span class="font-semibold {{ if eq .Type "liability" }}text-error{{ else if lt .Balance 0 }}text-error{{ else }}text-success{{ end }}">
+                    {{ fmtMoney .Balance }}
+                </span>
+                {{ if .ManuallySet }}<p class="text-xs text-base-content/40">manual</p>{{ end }}
+            </div>
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-xs btn-circle">···</div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-10 w-40 p-1 shadow">
+                    <li><a href="/accounts/{{ .ID }}/balance">Set balance</a></li>
+                    <li><a href="/accounts/{{ .ID }}">Transactions</a></li>
+                    <li><a href="/accounts/{{ .ID }}/edit">Edit</a></li>
+                    <li>
+                        <form method="POST" action="/accounts/{{ .ID }}/delete">
+                            <button type="submit" class="text-error w-full text-left"
+                                onclick="return confirm('Delete this account?')">Delete</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+</div>
+{{ end }}
+{{ end }}
+
+{{ if not $hasAny }}
 <div class="hero bg-base-100 rounded-box py-20">
     <div class="hero-content text-center">
         <div>

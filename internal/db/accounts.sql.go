@@ -7,28 +7,46 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
+const clearManualBalance = `-- name: ClearManualBalance :exec
+UPDATE accounts SET manual_balance = NULL WHERE id = ?
+`
+
+func (q *Queries) ClearManualBalance(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, clearManualBalance, id)
+	return err
+}
+
 const createAccount = `-- name: CreateAccount :one
-INSERT INTO accounts (name, type, currency)
-VALUES (?, ?, ?)
-RETURNING id, name, type, currency, created_at
+INSERT INTO accounts (name, type, currency, institution)
+VALUES (?, ?, ?, ?)
+RETURNING id, name, type, currency, institution, manual_balance, created_at
 `
 
 type CreateAccountParams struct {
-	Name     string
-	Type     string
-	Currency string
+	Name        string
+	Type        string
+	Currency    string
+	Institution string
 }
 
 func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error) {
-	row := q.db.QueryRowContext(ctx, createAccount, arg.Name, arg.Type, arg.Currency)
+	row := q.db.QueryRowContext(ctx, createAccount,
+		arg.Name,
+		arg.Type,
+		arg.Currency,
+		arg.Institution,
+	)
 	var i Account
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Type,
 		&i.Currency,
+		&i.Institution,
+		&i.ManualBalance,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -44,7 +62,7 @@ func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
 }
 
 const getAccount = `-- name: GetAccount :one
-SELECT id, name, type, currency, created_at FROM accounts WHERE id = ?
+SELECT id, name, type, currency, institution, manual_balance, created_at FROM accounts WHERE id = ?
 `
 
 func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
@@ -55,6 +73,8 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 		&i.Name,
 		&i.Type,
 		&i.Currency,
+		&i.Institution,
+		&i.ManualBalance,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -74,7 +94,7 @@ func (q *Queries) GetAccountBalance(ctx context.Context, accountID int64) (inter
 }
 
 const listAccounts = `-- name: ListAccounts :many
-SELECT id, name, type, currency, created_at FROM accounts ORDER BY type, name
+SELECT id, name, type, currency, institution, manual_balance, created_at FROM accounts ORDER BY type, name
 `
 
 func (q *Queries) ListAccounts(ctx context.Context) ([]Account, error) {
@@ -91,6 +111,8 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]Account, error) {
 			&i.Name,
 			&i.Type,
 			&i.Currency,
+			&i.Institution,
+			&i.ManualBalance,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -106,17 +128,32 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]Account, error) {
 	return items, nil
 }
 
+const setManualBalance = `-- name: SetManualBalance :exec
+UPDATE accounts SET manual_balance = ? WHERE id = ?
+`
+
+type SetManualBalanceParams struct {
+	ManualBalance sql.NullInt64
+	ID            int64
+}
+
+func (q *Queries) SetManualBalance(ctx context.Context, arg SetManualBalanceParams) error {
+	_, err := q.db.ExecContext(ctx, setManualBalance, arg.ManualBalance, arg.ID)
+	return err
+}
+
 const updateAccount = `-- name: UpdateAccount :one
-UPDATE accounts SET name = ?, type = ?, currency = ?
+UPDATE accounts SET name = ?, type = ?, currency = ?, institution = ?
 WHERE id = ?
-RETURNING id, name, type, currency, created_at
+RETURNING id, name, type, currency, institution, manual_balance, created_at
 `
 
 type UpdateAccountParams struct {
-	Name     string
-	Type     string
-	Currency string
-	ID       int64
+	Name        string
+	Type        string
+	Currency    string
+	Institution string
+	ID          int64
 }
 
 func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error) {
@@ -124,6 +161,7 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (A
 		arg.Name,
 		arg.Type,
 		arg.Currency,
+		arg.Institution,
 		arg.ID,
 	)
 	var i Account
@@ -132,6 +170,8 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (A
 		&i.Name,
 		&i.Type,
 		&i.Currency,
+		&i.Institution,
+		&i.ManualBalance,
 		&i.CreatedAt,
 	)
 	return i, err

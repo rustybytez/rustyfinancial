@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -34,6 +35,8 @@ func main() {
 		log.Fatalf("store: %v", err)
 	}
 
+	s.StartSnapshotWorker(context.Background())
+
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Logger())
@@ -60,12 +63,19 @@ func main() {
 	e.GET("/accounts/:id/edit", ah.EditForm)
 	e.POST("/accounts/:id/edit", ah.Update)
 	e.POST("/accounts/:id/delete", ah.Delete)
+	e.GET("/accounts/:id/balance", ah.BalanceForm)
+	e.POST("/accounts/:id/balance", ah.SetBalance)
 
 	// Transactions
 	th := handler.NewTransactionHandler(s)
 	e.GET("/accounts/:id", th.List)
 	e.POST("/accounts/:id/transactions", th.Create)
 	e.POST("/accounts/:id/transactions/:txid/delete", th.Delete)
+
+	// Snapshots
+	sh := handler.NewSnapshotHandler(s)
+	e.GET("/snapshots", sh.History)
+	e.POST("/snapshots", sh.Take)
 
 	log.Printf("listening on :%s", port)
 	log.Fatal(e.Start(":" + port))
